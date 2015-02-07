@@ -1,3 +1,9 @@
+require('./apikeys');
+require('nodetime').profile({
+    accountKey: apikeys.nodetime, 
+    appName: 'Proficionym API'
+  });
+
 /*
  * Dependencies
  */
@@ -7,11 +13,11 @@ var express 	  = require('express'),
 	parseXML 	  = require('xml2js').parseString,
 	validator 	  = require('validator'),
 	request 	  = require('request'),
-	jsonStringify = require('json-stringify-safe');
+	jsonStringify = require('json-stringify-safe')
+	whois 		  = require('whoisclient');
 /*
  * Environment Variables
  */
-require('./apikeys');
  
 /*
  * init
@@ -24,7 +30,7 @@ var app = express();
 app.get('/', function(req, res) {
     res.send(jsonStringify({
     	name : 'Proficionym API',
-    	version : "0.0.1"
+    	version : '0.0.1'
     }));
 });
  
@@ -103,6 +109,7 @@ app.get('/query/:word', function(req, res) {
  * Utility Methods
  */
 function _getSynonyms(word) {
+	var startTime = Date.now();
 	return new Promise(function(resolve, reject) {
 		var url = 
 			'http://www.dictionaryapi.com/api/v1/references/thesaurus/xml/' +
@@ -128,6 +135,9 @@ function _getSynonyms(word) {
 			    		reject(mappedSynonyms.error);
 			    	}
 
+					var elapsedTime = Date.now() - startTime;
+					console.log("_getSynonyms elapsed time: " + elapsedTime);
+
 		    		resolve(mappedSynonyms);
 		    	}
 	    	})
@@ -137,6 +147,7 @@ function _getSynonyms(word) {
 
 //this method returns an object of mapped data, or an object with an error property which should be checked for first when used
 function _mapRawSynonyms(rawSynonyms) {
+	var startTime = Date.now();
 	//check for needed properties
 	if(!rawSynonyms || !rawSynonyms.entry_list || !rawSynonyms.entry_list.entry || rawSynonyms.entry_list.entry.length == 0 ) {
 		console.log('rawSynonyms fails validation');
@@ -186,6 +197,9 @@ function _mapRawSynonyms(rawSynonyms) {
 		entries.push(entry);
 	}
 
+	var elapsedTime = Date.now() - startTime;
+	console.log("_mapRawSynonyms elapsed time: " + elapsedTime);
+
 	return entries;
 }
 
@@ -204,10 +218,16 @@ function _extractKeywords(str) {
 }
 
 function _availableDomains(domains, clientAddress) {
+	var startTime = Date.now();
 	return new Promise(function(resolve, reject) {
 		var domainsString = '';
+		var count = 0
 		for(var key in domains) {
 			domainsString += key + ',';
+			count++;
+			if(count > 5){
+				break;
+			}
 		}
 		//removing dangling comma
 		domainsString = domainsString.substr(0, domainsString.length - 1);
@@ -227,6 +247,10 @@ function _availableDomains(domains, clientAddress) {
 		  		reject(error);
 		  		return;
 		    }
+
+			var requestTime = Date.now() - startTime;
+			console.log("_availableDomains request time: " + requestTime);
+
 		    parseXML(body, function(error, result) {
 		    	if(error) {
 		    		console.log('xml parse failure');
@@ -237,6 +261,9 @@ function _availableDomains(domains, clientAddress) {
 
 			    	var mappedDomains = _mapRawDomains(result);
 
+					var elapsedTime = Date.now() - startTime;
+					console.log("_availableDomains elapsed time: " + elapsedTime);
+
 		    		resolve(mappedDomains);
 		    	}
 	    	})
@@ -245,6 +272,7 @@ function _availableDomains(domains, clientAddress) {
 }
 
 function _mapRawDomains(rawDomains) {
+	var startTime = Date.now();
 	//console.log('ApiResponse: ', rawDomains.ApiResponse);
 	//console.log('ApiResponse.Errors[0]: ', rawDomains.ApiResponse.Errors[0]);
 	//console.log('CommandResponse: ', rawDomains.ApiResponse.CommandResponse);
@@ -283,6 +311,9 @@ function _mapRawDomains(rawDomains) {
 		}
 	}
 
+	var elapsedTime = Date.now() - startTime;
+	console.log("_mapRawDomains elapsed time: " + elapsedTime);
+
 	return {available: availableDomains, errors: errorDomains, unavailable : unavailableDomains};
 
 }
@@ -298,7 +329,7 @@ function _mapRawDomains(rawDomains) {
 	}
 */
 function _domainsFromSynonyms(synonyms, options) {
-
+	var startTime = Date.now();
 	//storing domains as a hash 
 	var domains = {};
 
@@ -318,9 +349,73 @@ function _domainsFromSynonyms(synonyms, options) {
 				domains[fullDomain] = true;
 			}
 		}
-	}	
+	}
+
+	var elapsedTime = Date.now() - startTime;
+	console.log("_domainsFromSynonyms elapsed time: " + elapsedTime);
 
 	return domains;
+}
+
+function _profilerStub() {
+	var res = { send : console.log, writeHead : console.log, write : console.log, end : console.log};
+	var word = 'test';
+	//validate word
+	if(!validator.isAlpha(word)) {
+		var error = {
+			error : 'Invalid Parameter',
+			description : 'The word you look up must be a single word with no numbers or punctuation.'
+		}
+		res.send(jsonStringify(error));
+		return;
+	}
+
+	//validate and assign url query params
+	var tld = 'com';
+	var prefix = '';
+	var suffix = '';
+
+	var clientAddress = '73.181.224.108';
+
+	//begin request for synonyms
+	_getSynonyms(word)
+		.then(function(synonyms) {
+			/*var result = jsonStringify(synonyms);
+			res.writeHead(200, {
+		    	'Content-Type': 'application/json',
+			    'Content-Length': Buffer.byteLength(result, 'utf8')
+			});
+			res.write(result);
+			res.end();*/
+			var domains = _domainsFromSynonyms(synonyms , {
+				tld : tld,
+				prefix : prefix,
+				suffix : suffix
+			});
+			return _availableDomains(domains, clientAddress);
+		})
+		.then(function(domains) {
+			var result = jsonStringify(domains);
+			res.writeHead(200, {
+		    	'Content-Type': 'application/json',
+			    'Content-Length': Buffer.byteLength(result, 'utf8'),
+			    //Should change this to prevent abuse
+				'Access-Control-Allow-Origin' : "*"
+			});
+			res.write(result);
+			res.end();
+		})
+		.error(function(error) {
+			var err = jsonStringify({
+				error : error
+			});
+			res.writeHead(400, {
+			  'Content-Type': 'application/json',
+			  'Content-Length': Buffer.byteLength(err, 'utf8')
+			});
+			res.write(err);
+			res.end()
+		});
 }
  
 /*

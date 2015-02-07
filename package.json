@@ -17,6 +17,8 @@
     "bluebird": "~2.9.6",
     "validator": "~3.28.0",
     "request": "~2.53.0",
-    "json-stringify-safe": "~5.0.0"
+    "json-stringify-safe": "~5.0.0",
+    "nodetime": "~0.8.15",
+    "whoisclient": "~0.1.1"
   }
 }
