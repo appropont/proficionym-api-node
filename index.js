@@ -7,7 +7,7 @@ var express 	  = require('express'),
 	parseXML 	  = require('xml2js').parseString,
 	validator 	  = require('validator'),
 	request 	  = require('request'),
-	jsonStringify = require('stringify-object');
+	jsonStringify = require('json-stringify-safe');
 /*
  * Environment Variables
  */
@@ -78,7 +78,9 @@ app.get('/query/:word', function(req, res) {
 			var result = jsonStringify(domains);
 			res.writeHead(200, {
 		    	'Content-Type': 'application/json',
-			    'Content-Length': Buffer.byteLength(result, 'utf8')
+			    'Content-Length': Buffer.byteLength(result, 'utf8'),
+			    //Should change this to prevent abuse
+				'Access-Control-Allow-Origin' : "*"
 			});
 			res.write(result);
 			res.end();

@@ -17,8 +17,6 @@
     "bluebird": "~2.9.6",
     "validator": "~3.28.0",
     "request": "~2.53.0",
-    "json": "~9.0.3",
-    "stringify-object": "~1.0.0",
-    "string": "~3.0.0"
+    "json-stringify-safe": "~5.0.0"
   }
 }
