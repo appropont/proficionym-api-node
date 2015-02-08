@@ -14,11 +14,13 @@ var express 	  = require('express'),
 	validator 	  = require('validator'),
 	request 	  = require('request'),
 	jsonStringify = require('json-stringify-safe')
-	whois 		  = require('whoisclient');
+	whois 		  = require('node-whois')
+	async		  = require('async');
 /*
  * Environment Variables
  */
- 
+ var accessControlOrigin = '*';
+
 /*
  * init
  */
@@ -28,10 +30,17 @@ var app = express();
  * Routes
  */
 app.get('/', function(req, res) {
-    res.send(jsonStringify({
+	var response = jsonStringify({
     	name : 'Proficionym API',
     	version : '0.0.1'
-    }));
+    });
+	res.writeHead(200, {
+	    'Content-Type': 'application/json',
+	    'Content-Length': Buffer.byteLength(response, 'utf8'),
+		'Access-Control-Allow-Origin' : accessControlOrigin
+	});
+	res.write(response);
+	res.end();
 });
  
 app.get('/query/:word', function(req, res) {
@@ -78,15 +87,14 @@ app.get('/query/:word', function(req, res) {
 				prefix : prefix,
 				suffix : suffix
 			});
-			return _availableDomains(domains, clientAddress);
+			return _availableDomains(domains);
 		})
 		.then(function(domains) {
 			var result = jsonStringify(domains);
 			res.writeHead(200, {
 		    	'Content-Type': 'application/json',
 			    'Content-Length': Buffer.byteLength(result, 'utf8'),
-			    //Should change this to prevent abuse
-				'Access-Control-Allow-Origin' : "*"
+				'Access-Control-Allow-Origin' : accessControlOrigin
 			});
 			res.write(result);
 			res.end();
@@ -96,8 +104,9 @@ app.get('/query/:word', function(req, res) {
 				error : error
 			});
 			res.writeHead(400, {
-			  'Content-Type': 'application/json',
-			  'Content-Length': Buffer.byteLength(err, 'utf8')
+			    'Content-Type': 'application/json',
+			    'Content-Length': Buffer.byteLength(err, 'utf8'),
+				'Access-Control-Allow-Origin' : accessControlOrigin
 			});
 			res.write(err);
 			res.end()
@@ -105,6 +114,94 @@ app.get('/query/:word', function(req, res) {
 	
 
 });
+
+app.get('/synonyms/:word', function(req, res) {
+	var word = req.params.word;
+	//validate word
+	if(!validator.isAlpha(word)) {
+		var error = {
+			error : 'Invalid Parameter',
+			description : 'The word you look up must be a single word with no numbers or punctuation.'
+		}
+		res.send(jsonStringify(error));
+		return;
+	}
+
+		//validate and assign url query params
+	var tld = 'com';
+	if(req.query.tld && validator.isAlpha(req.query.tld)) {
+		tld = req.query.tld;
+	}
+	var prefix = '';
+	if(req.query.prefix && validator.isAlphanumeric(req.query.prefix)) {
+		prefix = req.query.prefix;
+	}
+	var suffix = '';
+	if(req.query.suffix && validator.isAlphanumeric(req.query.suffix)) {
+		suffix = req.query.suffix;
+	}
+
+
+	var clientAddress = (req.headers['x-forwarded-for'] || '').split(',')[0] || req.connection.remoteAddress;
+
+	//begin request for synonyms
+	_getSynonyms(word)
+		.then(function(synonyms) {
+			var result = jsonStringify(_synonymsList(synonyms));
+			res.writeHead(200, {
+		    	'Content-Type': 'application/json',
+			    'Content-Length': Buffer.byteLength(result, 'utf8'),
+				'Access-Control-Allow-Origin' : accessControlOrigin
+			});
+			res.write(result);
+			res.end();
+		})
+		.error(function(error) {
+			var err = jsonStringify({
+				error : error
+			});
+			res.writeHead(400, {
+			    'Content-Type': 'application/json',
+			    'Content-Length': Buffer.byteLength(err, 'utf8'),
+				'Access-Control-Allow-Origin' : accessControlOrigin
+			});
+			res.write(err);
+			res.end();
+		});
+});
+
+
+app.get('/whois/:domain', function(req, res) {
+	var domain = req.params.domain;
+	//validate domain
+	//TODO
+
+	_isDomainAvailable(domain)
+		.then(function(domainResponse) {
+			var result = jsonStringify(domainResponse);
+			res.writeHead(200, {
+		    	'Content-Type': 'application/json',
+			    'Content-Length': Buffer.byteLength(result, 'utf8'),
+				'Access-Control-Allow-Origin' : accessControlOrigin
+			});
+			res.write(result);
+			res.end();
+		})
+		.error(function(err) {
+			var err = jsonStringify({
+				error : err
+			});
+			res.writeHead(400, {
+			    'Content-Type': 'application/json',
+			    'Content-Length': Buffer.byteLength(err, 'utf8'),
+				'Access-Control-Allow-Origin' : accessControlOrigin
+			});
+			res.write(err);
+			res.end();
+		});
+
+});
+
 /*
  * Utility Methods
  */
@@ -217,57 +314,85 @@ function _extractKeywords(str) {
 		.split(',');
 }
 
-function _availableDomains(domains, clientAddress) {
+function _availableDomains(domains) {
 	var startTime = Date.now();
 	return new Promise(function(resolve, reject) {
-		var domainsString = '';
-		var count = 0
-		for(var key in domains) {
-			domainsString += key + ',';
-			count++;
-			if(count > 5){
-				break;
-			}
+
+		var domainResults = {
+			available : [],
+			unavailable : [],
+			error : []
+		};
+
+		var whoisCall = function(domain, callback) {
+			var whoisStartTime = Date.now();
+			whois.lookup(domain, function(err, data) {
+				if(err) {
+					console.log(err);
+					callback(err);
+				} else {
+			        //console.log(data);
+			        var availableRegex = /No match for domain "(.*)".\n/g;
+			        var unavailableRegex = /Domain Name: (.*)\n/g;
+			        var secondUnavailableRegex = /^Domain Name: (.*)\n/g;
+
+			        if(data.search(availableRegex) > -1) {
+			        	domainResults.available.push(domain);
+			        } else if(data.search(unavailableRegex) !== -1 || data.search(secondUnavailableRegex) !== -1) {
+			        	domainResults.unavailable.push(domain);
+			        } else {
+			        	//console.log('------------------- Unmatched Response --------------------');
+			        	//console.log(data);
+			        	domainResults.error.push(domain);
+			        }
+			        console.log('whoisCall took: ', Date.now() - whoisStartTime);
+			        callback();
+			    }
+		    });
 		}
-		//removing dangling comma
-		domainsString = domainsString.substr(0, domainsString.length - 1);
 
-		var url = 
-			'https://api.sandbox.namecheap.com/xml.response' +
-			'?ApiUser='		+ apikeys.namecheap.apiUser + 
-			'&ApiKey='   	+ apikeys.namecheap.sandboxKey + //apikeys.namecheap.apiKey + 
-			'&UserName=' 	+ apikeys.namecheap.userName + 
-			'&ClientIp=' 	+ clientAddress + 
-			'&Command=namecheap.domains.check' + 
-			'&DomainList='	+ domainsString;
+		var queue = async.queue(whoisCall, 20); // Run ten simultaneous uploads
 
-		request(url, function(error, response, body) {
-		    if(error) {
-		    	console.log('failed request')
-		  		reject(error);
-		  		return;
+		queue.drain = function() {
+		    console.log("All domains are checked.");
+		    var elapsedTime = Date.now() - startTime;
+			console.log("_availableDomains elapsed time: " + elapsedTime);
+		    resolve(domainResults);
+		};
+
+		// Queue your files for upload
+		queue.push(domains);
+
+	});
+}
+
+function _isDomainAvailable(domain) {
+	return new Promise(function(resolve, reject) {
+		whois.lookup(domain, function(err, data) {
+			if(err) {
+				console.log(err);
+				reject({error: err});
+			} else {
+		        //console.log(data);
+		        var availableRegex = /No match for domain "(.*)".\n/g;
+		        var unavailableRegex = /Domain Name: (.*)\r\n/g;
+
+		        var domainResponse = {
+		        	domain : domain
+		        };
+		        if(data.search(availableRegex) > -1) {
+		        	domainResponse.status = "available";
+		        } else if(data.search(unavailableRegex) !== -1) {
+		        	domainResponse.status = "registered";
+		        } else {
+		        	//console.log('------------------- Unmatched Response --------------------');
+		        	//console.log(data);
+		        	domainResponse.status = "error";
+		        }
+		        domainResponse.data = data;
+		        resolve(domainResponse);
 		    }
-
-			var requestTime = Date.now() - startTime;
-			console.log("_availableDomains request time: " + requestTime);
-
-		    parseXML(body, function(error, result) {
-		    	if(error) {
-		    		console.log('xml parse failure');
-		    		reject(error);
-		    		return;
-		    	} else {
-			    	console.log('xml parse success');
-
-			    	var mappedDomains = _mapRawDomains(result);
-
-					var elapsedTime = Date.now() - startTime;
-					console.log("_availableDomains elapsed time: " + elapsedTime);
-
-		    		resolve(mappedDomains);
-		    	}
-	    	})
-		});
+	    });
 	});
 }
 
@@ -354,68 +479,51 @@ function _domainsFromSynonyms(synonyms, options) {
 	var elapsedTime = Date.now() - startTime;
 	console.log("_domainsFromSynonyms elapsed time: " + elapsedTime);
 
-	return domains;
+	var result = [], prop, i;
+
+    for (prop in domains) {
+        if (hasOwnProperty.call(domains, prop)) {
+            result.push(prop);
+        }
+    }
+
+	return result;
 }
 
-function _profilerStub() {
-	var res = { send : console.log, writeHead : console.log, write : console.log, end : console.log};
-	var word = 'test';
-	//validate word
-	if(!validator.isAlpha(word)) {
-		var error = {
-			error : 'Invalid Parameter',
-			description : 'The word you look up must be a single word with no numbers or punctuation.'
+function _synonymsList(synonyms) {
+	var startTime = Date.now();
+	//storing domains as a hash 
+	var synonymsHash = {};
+
+	//so many loops. caching lengths to squeeze performance a bit.
+	var synonymsCount = synonyms.length;
+	for(var i = 0; i < synonymsCount; i++) {
+		var synonymSet = synonyms[i]
+		var senseCount = synonymSet.senses.length;
+		for(var j = 0; j < senseCount; j++) {
+			var sense = synonymSet.senses[j];
+
+			var wordCount = sense.words.length;
+			for(var k = 0; k < wordCount; k++) {
+				var synonym = sense.words[k];
+				//console.log(fullDomain);
+				synonymsHash[synonym] = true;
+			}
 		}
-		res.send(jsonStringify(error));
-		return;
 	}
 
-	//validate and assign url query params
-	var tld = 'com';
-	var prefix = '';
-	var suffix = '';
+	var elapsedTime = Date.now() - startTime;
+	console.log("_synonymsList elapsed time: " + elapsedTime);
 
-	var clientAddress = '73.181.224.108';
+	var result = [], prop, i;
 
-	//begin request for synonyms
-	_getSynonyms(word)
-		.then(function(synonyms) {
-			/*var result = jsonStringify(synonyms);
-			res.writeHead(200, {
-		    	'Content-Type': 'application/json',
-			    'Content-Length': Buffer.byteLength(result, 'utf8')
-			});
-			res.write(result);
-			res.end();*/
-			var domains = _domainsFromSynonyms(synonyms , {
-				tld : tld,
-				prefix : prefix,
-				suffix : suffix
-			});
-			return _availableDomains(domains, clientAddress);
-		})
-		.then(function(domains) {
-			var result = jsonStringify(domains);
-			res.writeHead(200, {
-		    	'Content-Type': 'application/json',
-			    'Content-Length': Buffer.byteLength(result, 'utf8'),
-			    //Should change this to prevent abuse
-				'Access-Control-Allow-Origin' : "*"
-			});
-			res.write(result);
-			res.end();
-		})
-		.error(function(error) {
-			var err = jsonStringify({
-				error : error
-			});
-			res.writeHead(400, {
-			  'Content-Type': 'application/json',
-			  'Content-Length': Buffer.byteLength(err, 'utf8')
-			});
-			res.write(err);
-			res.end()
-		});
+    for (prop in synonymsHash) {
+        if (hasOwnProperty.call(synonymsHash, prop)) {
+            result.push(prop);
+        }
+    }
+
+	return result;
 }
  
 /*
