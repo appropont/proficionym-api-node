@@ -13,8 +13,9 @@ var express 	  = require('express'),
 	parseXML 	  = require('xml2js').parseString,
 	validator 	  = require('validator'),
 	request 	  = require('request'),
-	jsonStringify = require('json-stringify-safe')
-	whois 		  = require('node-whois')
+	jsonStringify = require('json-stringify-safe'),
+	exec 		  = require('child_process').exec,
+	whois 		  = require('node-whois'),
 	async		  = require('async');
 /*
  * Environment Variables
@@ -41,78 +42,6 @@ app.get('/', function(req, res) {
 	});
 	res.write(response);
 	res.end();
-});
- 
-app.get('/query/:word', function(req, res) {
-	var word = req.params.word;
-	//validate word
-	if(!validator.isAlpha(word)) {
-		var error = {
-			error : 'Invalid Parameter',
-			description : 'The word you look up must be a single word with no numbers or punctuation.'
-		}
-		res.send(jsonStringify(error));
-		return;
-	}
-
-	//validate and assign url query params
-	var tld = 'com';
-	if(req.query.tld && validator.isAlpha(req.query.tld)) {
-		tld = req.query.tld;
-	}
-	var prefix = '';
-	if(req.query.prefix && validator.isAlphanumeric(req.query.prefix)) {
-		prefix = req.query.prefix;
-	}
-	var suffix = '';
-	if(req.query.suffix && validator.isAlphanumeric(req.query.suffix)) {
-		suffix = req.query.suffix;
-	}
-
-
-	var clientAddress = (req.headers['x-forwarded-for'] || '').split(',')[0] || req.connection.remoteAddress;
-
-	//begin request for synonyms
-	_getSynonyms(word)
-		.then(function(synonyms) {
-			/*var result = jsonStringify(synonyms);
-			res.writeHead(200, {
-		    	'Content-Type': 'application/json',
-			    'Content-Length': Buffer.byteLength(result, 'utf8')
-			});
-			res.write(result);
-			res.end();*/
-			var domains = _domainsFromSynonyms(synonyms , {
-				tld : tld,
-				prefix : prefix,
-				suffix : suffix
-			});
-			return _availableDomains(domains);
-		})
-		.then(function(domains) {
-			var result = jsonStringify(domains);
-			res.writeHead(200, {
-		    	'Content-Type': 'application/json',
-			    'Content-Length': Buffer.byteLength(result, 'utf8'),
-				'Access-Control-Allow-Origin' : accessControlOrigin
-			});
-			res.write(result);
-			res.end();
-		})
-		.error(function(error) {
-			var err = jsonStringify({
-				error : error
-			});
-			res.writeHead(400, {
-			    'Content-Type': 'application/json',
-			    'Content-Length': Buffer.byteLength(err, 'utf8'),
-				'Access-Control-Allow-Origin' : accessControlOrigin
-			});
-			res.write(err);
-			res.end()
-		});
-	
-
 });
 
 app.get('/synonyms/:word', function(req, res) {
@@ -314,75 +243,30 @@ function _extractKeywords(str) {
 		.split(',');
 }
 
-function _availableDomains(domains) {
-	var startTime = Date.now();
-	return new Promise(function(resolve, reject) {
-
-		var domainResults = {
-			available : [],
-			unavailable : [],
-			error : []
-		};
-
-		var whoisCall = function(domain, callback) {
-			var whoisStartTime = Date.now();
-			whois.lookup(domain, function(err, data) {
-				if(err) {
-					console.log(err);
-					callback(err);
-				} else {
-			        //console.log(data);
-			        var availableRegex = /No match for domain "(.*)".\n/g;
-			        var unavailableRegex = /Domain Name: (.*)\n/g;
-			        var secondUnavailableRegex = /^Domain Name: (.*)\n/g;
-
-			        if(data.search(availableRegex) > -1) {
-			        	domainResults.available.push(domain);
-			        } else if(data.search(unavailableRegex) !== -1 || data.search(secondUnavailableRegex) !== -1) {
-			        	domainResults.unavailable.push(domain);
-			        } else {
-			        	//console.log('------------------- Unmatched Response --------------------');
-			        	//console.log(data);
-			        	domainResults.error.push(domain);
-			        }
-			        console.log('whoisCall took: ', Date.now() - whoisStartTime);
-			        callback();
-			    }
-		    });
-		}
-
-		var queue = async.queue(whoisCall, 20); // Run ten simultaneous uploads
-
-		queue.drain = function() {
-		    console.log("All domains are checked.");
-		    var elapsedTime = Date.now() - startTime;
-			console.log("_availableDomains elapsed time: " + elapsedTime);
-		    resolve(domainResults);
-		};
-
-		// Queue your files for upload
-		queue.push(domains);
-
-	});
-}
-
 function _isDomainAvailable(domain) {
 	return new Promise(function(resolve, reject) {
-		whois.lookup(domain, function(err, data) {
+		whois.lookup(domain, {follow: 0/*, verbose: true*/}, function(err, data) {
 			if(err) {
 				console.log(err);
-				reject({error: err});
+				console.log(data);
+				reject({domain: domain, error: err, response: data});
 			} else {
-		        //console.log(data);
-		        var availableRegex = /No match for domain "(.*)".\n/g;
-		        var unavailableRegex = /Domain Name: (.*)\r\n/g;
+		        console.log(data);
+		        var availableRegex = /No match for domain "(.*)".\n/g,
+		            unavailableRegex = /Domain Name: (.*)\n/g,
+		            unavailableRegexAlt = /Domain Name: (.*)\r\n/g,
+		            unavailableRegexAlt2 = /Domain Name:(.*)\r\n/g;
 
 		        var domainResponse = {
 		        	domain : domain
 		        };
 		        if(data.search(availableRegex) > -1) {
 		        	domainResponse.status = "available";
-		        } else if(data.search(unavailableRegex) !== -1) {
+		        } else if(
+		        		data.search(unavailableRegex) > -1 || 
+		        		data.search(unavailableRegexAlt) > -1 ||
+		        		data.search(unavailableRegexAlt2) > -1
+		        	) {
 		        	domainResponse.status = "registered";
 		        } else {
 		        	//console.log('------------------- Unmatched Response --------------------');
@@ -395,53 +279,37 @@ function _isDomainAvailable(domain) {
 	    });
 	});
 }
+/*
+function _isDomainAvailableShell(domain) {
+	return new Promise(function(resolve, reject) {
+		exec('whois ' + domain, function(err, stdout, stderr) {
+			if(err) {
+				console.log(err);
+				reject({domain: domain, error: err, response: stdout});
+			} else {
+		        console.log(stdout);
+		        var availableRegex = /No match for domain "(.*)".\n/g;
+		        var unavailableRegex = /Domain Name: (.*)\r\n/g;
 
-function _mapRawDomains(rawDomains) {
-	var startTime = Date.now();
-	//console.log('ApiResponse: ', rawDomains.ApiResponse);
-	//console.log('ApiResponse.Errors[0]: ', rawDomains.ApiResponse.Errors[0]);
-	//console.log('CommandResponse: ', rawDomains.ApiResponse.CommandResponse);
-	//console.log('DomainCheckResult: ', rawDomains.ApiResponse.CommandResponse[0].DomainCheckResult);
-	//validate rawDomains
-	if(!rawDomains.ApiResponse['$'] || rawDomains.ApiResponse['$'].Status === 'ERROR') {
-		console.log('_mapRawDomains: rawDomains is error');
-		return {error: 'error fetching domains'};
-	}
-	if(
-		!rawDomains.ApiResponse['$'] || 
-		 rawDomains.ApiResponse['$'].Status !== 'OK' || 
-		!rawDomains.ApiResponse.CommandResponse ||
-		 rawDomains.ApiResponse.CommandResponse.length === 0 ||
-		!rawDomains.ApiResponse.CommandResponse[0].DomainCheckResult ||
-		 rawDomains.ApiResponse.CommandResponse[0].DomainCheckResult.length === 0
-		) {
-		console.log('_mapRawDomains: rawDomains fails validation');
-		return {error: 'rawDomains fails validation'};
-	}
+		        var domainResponse = {
+		        	domain : domain
+		        };
+		        if(stdout.search(availableRegex) > -1) {
+		        	domainResponse.status = "available";
+		        } else if(stdout.search(unavailableRegex) !== -1) {
+		        	domainResponse.status = "registered";
+		        } else {
+		        	//console.log('------------------- Unmatched Response --------------------');
+		        	//console.log(data);
+		        	domainResponse.status = "error";
+		        }
+		        //domainResponse.data = data;
+		        resolve(domainResponse);
+		    }
+	    });
+	});
+}*/
 
-	var domainResults = rawDomains.ApiResponse.CommandResponse[0].DomainCheckResult;
-	var resultCount = domainResults.length;
-
-	var availableDomains = [],
-		unavailableDomains = [],
-		errorDomains = [];
-	for(var i = 0; i < resultCount; i++) {
-		var domainResult = domainResults[i].$;
-		if(domainResult.Available === 'true') {
-			availableDomains.push(domainResult.Domain);
-		} else if(domainResult.ErrorNo !== '0') {
-			errorDomains.push(domainResult.Domain);
-		} else {
-			unavailableDomains.push(domainResult.Domain);
-		}
-	}
-
-	var elapsedTime = Date.now() - startTime;
-	console.log("_mapRawDomains elapsed time: " + elapsedTime);
-
-	return {available: availableDomains, errors: errorDomains, unavailable : unavailableDomains};
-
-}
 
 //Takes in a synonyms array.
 /*
@@ -453,43 +321,6 @@ function _mapRawDomains(rawDomains) {
 		}
 	}
 */
-function _domainsFromSynonyms(synonyms, options) {
-	var startTime = Date.now();
-	//storing domains as a hash 
-	var domains = {};
-
-	//so many loops. caching lengths to squeeze performance a bit.
-	var synonymsCount = synonyms.length;
-	for(var i = 0; i < synonymsCount; i++) {
-		var synonymSet = synonyms[i]
-		var senseCount = synonymSet.senses.length;
-		for(var j = 0; j < senseCount; j++) {
-			var sense = synonymSet.senses[j];
-
-			var wordCount = sense.words.length;
-			for(var k = 0; k < wordCount; k++) {
-				var domain = sense.words[k];
-				var fullDomain = options.prefix + domain + options.suffix + '.' + options.tld;
-				//console.log(fullDomain);
-				domains[fullDomain] = true;
-			}
-		}
-	}
-
-	var elapsedTime = Date.now() - startTime;
-	console.log("_domainsFromSynonyms elapsed time: " + elapsedTime);
-
-	var result = [], prop, i;
-
-    for (prop in domains) {
-        if (hasOwnProperty.call(domains, prop)) {
-            result.push(prop);
-        }
-    }
-
-	return result;
-}
-
 function _synonymsList(synonyms) {
 	var startTime = Date.now();
 	//storing domains as a hash 
