@@ -46,7 +46,6 @@ app.get('/', function(req, res) {
 
 app.get('/synonyms/:word', function(req, res) {
 	var word = req.params.word;
-	//validate word
 	if(!validator.isAlpha(word)) {
 		var error = {
 			error : 'Invalid Parameter',
@@ -56,7 +55,6 @@ app.get('/synonyms/:word', function(req, res) {
 		return;
 	}
 
-		//validate and assign url query params
 	var tld = 'com';
 	if(req.query.tld && validator.isAlpha(req.query.tld)) {
 		tld = req.query.tld;
@@ -73,7 +71,6 @@ app.get('/synonyms/:word', function(req, res) {
 
 	var clientAddress = (req.headers['x-forwarded-for'] || '').split(',')[0] || req.connection.remoteAddress;
 
-	//begin request for synonyms
 	_getSynonyms(word)
 		.then(function(synonyms) {
 			var result = jsonStringify(_synonymsList(synonyms));
@@ -116,9 +113,9 @@ app.get('/whois/:domain', function(req, res) {
 			res.write(result);
 			res.end();
 		})
-		.error(function(err) {
+		.error(function(error) {
 			var err = jsonStringify({
-				error : err
+				error : error
 			});
 			res.writeHead(400, {
 			    'Content-Type': 'application/json',
@@ -135,7 +132,6 @@ app.get('/whois/:domain', function(req, res) {
  * Utility Methods
  */
 function _getSynonyms(word) {
-	var startTime = Date.now();
 	return new Promise(function(resolve, reject) {
 		var url = 
 			'http://www.dictionaryapi.com/api/v1/references/thesaurus/xml/' +
@@ -145,24 +141,18 @@ function _getSynonyms(word) {
 
 		request(url, function(error, response, body) {
 		    if(error) {
-		    	console.log('failed request')
 		  		reject(error);
 		  		return;
 		    }
 		    parseXML(body, function(error, result) {
 		    	if(error) {
-		    		console.log('xml parse failure');
 		    		reject(error);
 		    		return;
 		    	} else {
-			    	console.log('xml parse success');
 			    	var mappedSynonyms = _mapRawSynonyms(result);
 			    	if(mappedSynonyms.error) {
 			    		reject(mappedSynonyms.error);
 			    	}
-
-					var elapsedTime = Date.now() - startTime;
-					console.log("_getSynonyms elapsed time: " + elapsedTime);
 
 		    		resolve(mappedSynonyms);
 		    	}
@@ -173,7 +163,7 @@ function _getSynonyms(word) {
 
 //this method returns an object of mapped data, or an object with an error property which should be checked for first when used
 function _mapRawSynonyms(rawSynonyms) {
-	var startTime = Date.now();
+	//var startTime = Date.now();
 	//check for needed properties
 	if(!rawSynonyms || !rawSynonyms.entry_list || !rawSynonyms.entry_list.entry || rawSynonyms.entry_list.entry.length == 0 ) {
 		console.log('rawSynonyms fails validation');
@@ -195,15 +185,13 @@ function _mapRawSynonyms(rawSynonyms) {
 			var rawSense = rawEntry.sens[j];
 
 			if(!rawSense) {
-				console.log('rawSense is null. senseCount: ', senseCount, ' j: ', j, ' i: ', i);
+				//console.log('rawSense is null. senseCount: ', senseCount, ' j: ', j, ' i: ', i);
 				continue;
 			}
 
 			var sense = {};
 			sense.meaning = rawSense.mc[0];
 
-			//console.log('syn: ', rawSense.syn);
-			//console.log('rel: ', rawSense.rel[0]);
 			var rel = rawSense.rel[0];
 			if(rel._) {
 				rel = rel._;
@@ -223,9 +211,6 @@ function _mapRawSynonyms(rawSynonyms) {
 		entries.push(entry);
 	}
 
-	var elapsedTime = Date.now() - startTime;
-	console.log("_mapRawSynonyms elapsed time: " + elapsedTime);
-
 	return entries;
 }
 
@@ -239,6 +224,8 @@ function _extractKeywords(str) {
 		.replace(/([;])/g, ',')
 		//remove square brackets
 		.replace(/(\[\])/g, '')
+		//remove square brackets
+		.replace(/(-)/g, '')
 		//use commas to split words into an array
 		.split(',');
 }
@@ -248,10 +235,8 @@ function _isDomainAvailable(domain) {
 		whois.lookup(domain, {follow: 0/*, verbose: true*/}, function(err, data) {
 			if(err) {
 				console.log(err);
-				console.log(data);
 				reject({domain: domain, error: err, response: data});
 			} else {
-		        console.log(data);
 		        var availableRegex = /No match for domain "(.*)".\n/g,
 		            unavailableRegex = /Domain Name: (.*)\n/g,
 		            unavailableRegexAlt = /Domain Name: (.*)\r\n/g,
@@ -269,47 +254,14 @@ function _isDomainAvailable(domain) {
 		        	) {
 		        	domainResponse.status = "registered";
 		        } else {
-		        	//console.log('------------------- Unmatched Response --------------------');
-		        	//console.log(data);
 		        	domainResponse.status = "error";
 		        }
-		        domainResponse.data = data;
+
 		        resolve(domainResponse);
 		    }
 	    });
 	});
 }
-/*
-function _isDomainAvailableShell(domain) {
-	return new Promise(function(resolve, reject) {
-		exec('whois ' + domain, function(err, stdout, stderr) {
-			if(err) {
-				console.log(err);
-				reject({domain: domain, error: err, response: stdout});
-			} else {
-		        console.log(stdout);
-		        var availableRegex = /No match for domain "(.*)".\n/g;
-		        var unavailableRegex = /Domain Name: (.*)\r\n/g;
-
-		        var domainResponse = {
-		        	domain : domain
-		        };
-		        if(stdout.search(availableRegex) > -1) {
-		        	domainResponse.status = "available";
-		        } else if(stdout.search(unavailableRegex) !== -1) {
-		        	domainResponse.status = "registered";
-		        } else {
-		        	//console.log('------------------- Unmatched Response --------------------');
-		        	//console.log(data);
-		        	domainResponse.status = "error";
-		        }
-		        //domainResponse.data = data;
-		        resolve(domainResponse);
-		    }
-	    });
-	});
-}*/
-
 
 //Takes in a synonyms array.
 /*
@@ -322,7 +274,6 @@ function _isDomainAvailableShell(domain) {
 	}
 */
 function _synonymsList(synonyms) {
-	var startTime = Date.now();
 	//storing domains as a hash 
 	var synonymsHash = {};
 
@@ -342,9 +293,6 @@ function _synonymsList(synonyms) {
 			}
 		}
 	}
-
-	var elapsedTime = Date.now() - startTime;
-	console.log("_synonymsList elapsed time: " + elapsedTime);
 
 	var result = [], prop, i;
 
