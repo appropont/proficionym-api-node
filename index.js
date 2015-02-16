@@ -20,7 +20,8 @@ var express 	  = require('express'),
 /*
  * Internal Dependencies
  */
-var synonyms = require('./service/synonyms');
+var synonyms = require('./service/synonyms'),
+	domains  = require('./service/domains');
 
 /*
  * Environment Variables
@@ -107,7 +108,7 @@ app.get('/whois/:domain', function(req, res) {
 	//validate domain
 	//TODO
 
-	_isDomainAvailable(domain)
+	domains.isDomainAvailable(domain)
 		.then(function(domainResponse) {
 			var result = jsonStringify(domainResponse);
 			res.writeHead(200, {
@@ -136,38 +137,6 @@ app.get('/whois/:domain', function(req, res) {
 /*
  * Utility Methods
  */
-function _isDomainAvailable(domain) {
-	return new Promise(function(resolve, reject) {
-		whois.lookup(domain, {follow: 0/*, verbose: true*/}, function(err, data) {
-			if(err) {
-				console.log(err);
-				reject({domain: domain, error: err, response: data});
-			} else {
-		        var availableRegex = /No match for domain "(.*)".\n/g,
-		            unavailableRegex = /Domain Name: (.*)\n/g,
-		            unavailableRegexAlt = /Domain Name: (.*)\r\n/g,
-		            unavailableRegexAlt2 = /Domain Name:(.*)\r\n/g;
-
-		        var domainResponse = {
-		        	domain : domain
-		        };
-		        if(data.search(availableRegex) > -1) {
-		        	domainResponse.status = "available";
-		        } else if(
-		        		data.search(unavailableRegex) > -1 || 
-		        		data.search(unavailableRegexAlt) > -1 ||
-		        		data.search(unavailableRegexAlt2) > -1
-		        	) {
-		        	domainResponse.status = "registered";
-		        } else {
-		        	domainResponse.status = "error";
-		        }
-
-		        resolve(domainResponse);
-		    }
-	    });
-	});
-}
 
 //Takes in a synonyms array.
 /*
