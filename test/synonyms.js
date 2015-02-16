@@ -109,10 +109,10 @@ describe('Synonyms._parseSynonymsXML', function() {
 describe('Synonyms.getSynonyms', function() {
 
 	it('should be defined', function() {
-		synonyms.getSynonyms.should.not.equal(undefined);
+		should.exist(synonyms.getSynonyms);
 	});
 
-	it('should reject when given a non-existent word', function() {
+	it('should reject when given a non-existent word', function(done) {
 
 		synonyms.getSynonyms('testtest')
 			.then(function(result) {
@@ -126,7 +126,7 @@ describe('Synonyms.getSynonyms', function() {
 
 	});
 
-	it('should resolve when given a legitimate word', function() {
+	it('should resolve when given a legitimate word', function(done) {
 
 		synonyms.getSynonyms('test')
 			.then(function(result) {

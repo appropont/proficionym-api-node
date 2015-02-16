@@ -7,6 +7,7 @@ var Promise 	  = require('bluebird'),
 
 var synonyms = {
 	getSynonyms : function(word) {
+		var self = this;
 		return new Promise(function(resolve, reject) {
 			var url = 
 				'http://www.dictionaryapi.com/api/v1/references/thesaurus/xml/' +
@@ -28,7 +29,7 @@ var synonyms = {
 			    			console.log('word not found in synonyms lookup');
 			    			reject('Word not found. Please check your spelling');
 			    		}
-				    	var parsedSynonyms = _parseSynonymsXML(result);
+				    	var parsedSynonyms = self._parseSynonymsXML(result);
 				    	if(parsedSynonyms.error) {
 				    		reject(parsedSynonyms);
 				    	}
