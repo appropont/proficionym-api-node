@@ -104,7 +104,7 @@ var synonyms = {
 			.replace(/(\(.*\))/g, '')
 			//replace semicolons with commas
 			.replace(/([;])/g, ',')
-			//remove square brackets
+			//remove square brackets (are they empty? I forget the format that caused this check to be necessary)
 			.replace(/(\[\])/g, '')
 			//remove hyphens
 			.replace(/(-)/g, '')
@@ -113,4 +113,4 @@ var synonyms = {
 	}
 };
 
-exports = synonyms;
+module.exports = synonyms;
