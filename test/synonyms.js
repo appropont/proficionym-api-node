@@ -1,4 +1,4 @@
-var should = require('chai').should(), //actually call the function
+var should = require('chai').should(),
 	synonyms = require('../service/synonyms');
 
 describe('Synonyms', function() {
@@ -10,12 +10,6 @@ describe('Synonyms', function() {
     it('should have the core method (getSynonyms)', function() {
     	synonyms.getSynonyms.should.not.equal(undefined);
     });
-
-    it('should have the utility method (_parseSynonymsXML)', function() {
-    	synonyms._parseSynonymsXML.should.not.equal(undefined);
-    });
-
-    
 
 });
 
@@ -64,6 +58,19 @@ describe('Synonyms._extractKeywords', function() {
     	keywords[0].should.equal('a');
     	keywords[1].should.equal('test');
     	keywords[2].should.equal('string');
+    });
+
+});
+
+describe('Synonyms._parseSynonymsXML', function() {
+
+    it('should be defined', function() {
+    	synonyms._parseSynonymsXML.should.not.equal(undefined);
+    });
+
+    it('should error on bad xml', function() {
+    	var result = synonyms._parseSynonymsXML('not xml');
+    	result.should.have.property('error');
     });
 
 });
