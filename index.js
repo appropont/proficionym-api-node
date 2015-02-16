@@ -5,22 +5,27 @@ require('nodetime').profile({
   });
 
 /*
- * Dependencies
+ * External Dependencies
  */
 var express 	  = require('express'),
 	Promise 	  = require('bluebird'),
-	//failed to promisify xml2js
+	//failed to promisify xml2js (not sure if by own error or by bug in either lib)
 	parseXML 	  = require('xml2js').parseString,
 	validator 	  = require('validator'),
 	request 	  = require('request'),
 	jsonStringify = require('json-stringify-safe'),
-	exec 		  = require('child_process').exec,
 	whois 		  = require('node-whois'),
 	async		  = require('async');
+
+/*
+ * Internal Dependencies
+ */
+var synonyms = require('./service/synonyms');
+
 /*
  * Environment Variables
  */
- var accessControlOrigin = '*';
+var accessControlOrigin = '*';
 
 /*
  * init
@@ -71,7 +76,7 @@ app.get('/synonyms/:word', function(req, res) {
 
 	var clientAddress = (req.headers['x-forwarded-for'] || '').split(',')[0] || req.connection.remoteAddress;
 
-	_getSynonyms(word)
+	synonyms.getSynonyms(word)
 		.then(function(synonyms) {
 			var result = jsonStringify(_synonymsList(synonyms));
 			res.writeHead(200, {
@@ -131,105 +136,6 @@ app.get('/whois/:domain', function(req, res) {
 /*
  * Utility Methods
  */
-function _getSynonyms(word) {
-	return new Promise(function(resolve, reject) {
-		var url = 
-			'http://www.dictionaryapi.com/api/v1/references/thesaurus/xml/' +
-			word +
-			'?key=' +
-			apikeys.thesaurus;
-
-		request(url, function(error, response, body) {
-		    if(error) {
-		  		reject(error);
-		  		return;
-		    }
-		    parseXML(body, function(error, result) {
-		    	if(error) {
-		    		reject(error);
-		    		return;
-		    	} else {
-			    	var mappedSynonyms = _mapRawSynonyms(result);
-			    	if(mappedSynonyms.error) {
-			    		reject(mappedSynonyms.error);
-			    	}
-
-		    		resolve(mappedSynonyms);
-		    	}
-	    	})
-		});
-	});
-}
-
-//this method returns an object of mapped data, or an object with an error property which should be checked for first when used
-function _mapRawSynonyms(rawSynonyms) {
-	//var startTime = Date.now();
-	//check for needed properties
-	if(!rawSynonyms || !rawSynonyms.entry_list || !rawSynonyms.entry_list.entry || rawSynonyms.entry_list.entry.length == 0 ) {
-		console.log('rawSynonyms fails validation');
-		return {error: '_mapRawSynonyms: rawSynonyms fails validation'};
-	}
-
-	var entries = [];
-	//an entry differentiates between words by type like noun or verb
-	var entryCount = rawSynonyms.entry_list.entry.length;
-	for(var i = 0; i < entryCount; i++) {
-		var rawEntry = rawSynonyms.entry_list.entry[i];
-
-		var entry = {};
-		entry.wordType = rawEntry.fl[0];
-
-		var senses = [];
-		var senseCount  = rawEntry.sens.length;
-		for(var j = 0; j < senseCount; j++) {
-			var rawSense = rawEntry.sens[j];
-
-			if(!rawSense) {
-				//console.log('rawSense is null. senseCount: ', senseCount, ' j: ', j, ' i: ', i);
-				continue;
-			}
-
-			var sense = {};
-			sense.meaning = rawSense.mc[0];
-
-			var rel = rawSense.rel[0];
-			if(rel._) {
-				rel = rel._;
-			}
-			var syn = rawSense.syn[0];
-			if(syn._) {
-				syn = syn._;
-			}
-			var relWords = _extractKeywords(rel);
-			var synWords = _extractKeywords(syn);
-			sense.words = synWords.concat(relWords);
-
-			senses.push(sense);
-		}
-		entry.senses = senses;
-
-		entries.push(entry);
-	}
-
-	return entries;
-}
-
-function _extractKeywords(str) {
-	return str
-		//removes whitespace
-		.replace(/(\s)/g, '')
-		//removes parentheses and words in them
-		.replace(/(\(.*\))/g, '')
-		//replace semicolons with commas
-		.replace(/([;])/g, ',')
-		//remove square brackets
-		.replace(/(\[\])/g, '')
-		//remove square brackets
-		.replace(/(-)/g, '')
-		//use commas to split words into an array
-		.split(',');
-}
-
 function _isDomainAvailable(domain) {
 	return new Promise(function(resolve, reject) {
 		whois.lookup(domain, {follow: 0/*, verbose: true*/}, function(err, data) {
