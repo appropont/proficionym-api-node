@@ -21,9 +21,11 @@ var synonyms = {
 			    		reject(error);
 			    		return;
 			    	} else {
+			    		console.log('result');
+			    		console.log(result);
 				    	var parsedSynonyms = _parseSynonymsXML(result);
 				    	if(parsedSynonyms.error) {
-				    		reject(parsedSynonyms.error);
+				    		reject(parsedSynonyms);
 				    	}
 
 			    		resolve(parsedSynonyms);
@@ -46,7 +48,7 @@ var synonyms = {
 			!rawSynonyms.entry_list.entry || 
 			rawSynonyms.entry_list.entry.length == 0 ) {
 
-				console.log('rawSynonyms fails validation');
+				//console.log('rawSynonyms fails validation');
 				return {error: '_mapRawSynonyms: rawSynonyms fails validation'};
 		}
 
@@ -57,16 +59,22 @@ var synonyms = {
 			var rawEntry = rawSynonyms.entry_list.entry[i];
 
 			var entry = {};
-			entry.wordType = rawEntry.fl[0];
+			entry.wordType = rawEntry.fl;
 
 			var senses = [];
 			var senseCount  = rawEntry.sens.length;
 			for(var j = 0; j < senseCount; j++) {
 				var rawSense = rawEntry.sens[j];
 
-				//Checking for valid Sense. 
+				//Checking for valid Sense.
 				//  The API sometimes returns invalid Senses mixed with valid ones (investigate why)
-				if(!rawSense) {
+				if( !rawSense || 
+					!rawSense.mc || 
+					!rawSense.mc.length || 
+					!rawSense.rel || 
+					!rawSense.rel.length || 
+					!rawSense.syn || 
+					!rawSense.syn.length) {
 					//console.log('rawSense is null. senseCount: ', senseCount, ' j: ', j, ' i: ', i);
 					continue;
 				}
@@ -82,8 +90,8 @@ var synonyms = {
 				if(syn._) {
 					syn = syn._;
 				}
-				var relWords = _extractKeywords(rel);
-				var synWords = _extractKeywords(syn);
+				var relWords = this._extractKeywords(rel);
+				var synWords = this._extractKeywords(syn);
 				sense.words = synWords.concat(relWords);
 
 				senses.push(sense);
