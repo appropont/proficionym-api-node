@@ -1,4 +1,7 @@
+require('../apikeys');
+
 var Promise 	  = require('bluebird'),
+	request 	  = require('request'),
 	//failed to promisify xml2js (not sure if by own error or by bug in either lib)
 	parseXML 	  = require('xml2js').parseString;
 
@@ -21,8 +24,10 @@ var synonyms = {
 			    		reject(error);
 			    		return;
 			    	} else {
-			    		console.log('result');
-			    		console.log(result);
+			    		if(result.suggestion) {
+			    			console.log('word not found in synonyms lookup');
+			    			reject('Word not found. Please check your spelling');
+			    		}
 				    	var parsedSynonyms = _parseSynonymsXML(result);
 				    	if(parsedSynonyms.error) {
 				    		reject(parsedSynonyms);

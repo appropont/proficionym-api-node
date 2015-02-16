@@ -112,3 +112,39 @@ describe('Synonyms._parseSynonymsXML', function() {
     });
 
 });
+
+describe('Synonyms.getSynonyms', function() {
+
+	it('should be defined', function() {
+		synonyms.getSynonyms.should.not.equal(undefined);
+	});
+
+	it('should reject when given a non-existent word', function() {
+
+		synonyms.getSynonyms('testtest')
+			.then(function(result) {
+				should.not.exist(result);
+				done();
+			})
+			.error(function(error) {
+				should.exist(error);
+				done();
+			});
+
+	});
+
+	it('should resolve when given a legitimate word', function() {
+
+		synonyms.getSynonyms('test')
+			.then(function(result) {
+				should.exist(result);
+				result.should.be.an('array').with.length(2);
+				done();
+			})
+			.error(function(error) {
+				should.not.exist(error);
+				done();
+			});
+			
+	});
+});
