@@ -79,7 +79,7 @@ app.get('/synonyms/:word', function(req, res) {
 
 	synonyms.getSynonyms(word)
 		.then(function(synonyms) {
-			var result = jsonStringify(_synonymsList(synonyms));
+			var result = jsonStringify(synonyms);
 			res.writeHead(200, {
 		    	'Content-Type': 'application/json',
 			    'Content-Length': Buffer.byteLength(result, 'utf8'),
@@ -133,52 +133,6 @@ app.get('/whois/:domain', function(req, res) {
 		});
 
 });
-
-/*
- * Utility Methods
- */
-
-//Takes in a synonyms array.
-/*
-	synonyms[] {
-		wordType : ...
-		senses[] : {
-			meaning : ...
-			words[] : ...
-		}
-	}
-*/
-function _synonymsList(synonyms) {
-	//storing domains as a hash 
-	var synonymsHash = {};
-
-	//so many loops. caching lengths to squeeze performance a bit.
-	var synonymsCount = synonyms.length;
-	for(var i = 0; i < synonymsCount; i++) {
-		var synonymSet = synonyms[i]
-		var senseCount = synonymSet.senses.length;
-		for(var j = 0; j < senseCount; j++) {
-			var sense = synonymSet.senses[j];
-
-			var wordCount = sense.words.length;
-			for(var k = 0; k < wordCount; k++) {
-				var synonym = sense.words[k];
-				//console.log(fullDomain);
-				synonymsHash[synonym] = true;
-			}
-		}
-	}
-
-	var result = [], prop, i;
-
-    for (prop in synonymsHash) {
-        if (hasOwnProperty.call(synonymsHash, prop)) {
-            result.push(prop);
-        }
-    }
-
-	return result;
-}
  
 /*
  * Start Server

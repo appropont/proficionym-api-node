@@ -106,6 +106,46 @@ describe('Synonyms._parseSynonymsXML', function() {
 
 });
 
+describe('Synonyms._synonymsList', function() {
+
+	it('should be defined', function() {
+		should.exist(synonyms._synonymsList);
+	});
+
+	it('should parse a properly formatted object and dedupe words', function() {
+		var testSynonyms = [
+			{
+				wordType : 'noun',
+				senses : [ 
+					{
+						meaning : 'A test meaning',
+						words : [
+							'test',
+							'guard',
+							'sentinel'
+						]
+					}
+				]
+			},
+			{
+				wordType : 'verb',
+				senses : [
+					{
+						meaning : 'Another meaning',
+						words : [
+							'test',
+							'annoy',
+							'try'
+						]
+					}
+				]
+			}
+		];
+		var result = synonyms._synonymsList(testSynonyms);
+		result.should.have.length(5);
+	})
+});
+
 describe('Synonyms.getSynonyms', function() {
 
 	it('should be defined', function() {
@@ -131,7 +171,8 @@ describe('Synonyms.getSynonyms', function() {
 		synonyms.getSynonyms('test')
 			.then(function(result) {
 				should.exist(result);
-				result.should.be.an('array').with.length(2);
+				//Kind of a brittle test. It will break when they add a new word. How often does that happen?
+				result.should.be.an('array').with.length(72);
 				done();
 			})
 			.error(function(error) {

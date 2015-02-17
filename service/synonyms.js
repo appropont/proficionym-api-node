@@ -34,7 +34,7 @@ var synonyms = {
 				    		reject(parsedSynonyms);
 				    	}
 
-			    		resolve(parsedSynonyms);
+			    		resolve(self._synonymsList(parsedSynonyms));
 			    	}
 		    	})
 			});
@@ -124,6 +124,48 @@ var synonyms = {
 			.replace(/(-)/g, '')
 			//use commas to split words into an array
 			.split(',');
+	},
+
+	//Takes in a synonyms array.
+	/*
+		synonyms[] {
+			wordType : ...
+			senses[] : {
+				meaning : ...
+				words[] : ...
+			}
+		}
+	*/
+	_synonymsList : function(synonyms) {
+		//storing domains as a hash 
+		var synonymsHash = {};
+
+		//so many loops. caching lengths to squeeze performance a bit.
+		var synonymsCount = synonyms.length;
+		for(var i = 0; i < synonymsCount; i++) {
+			var synonymSet = synonyms[i]
+			var senseCount = synonymSet.senses.length;
+			for(var j = 0; j < senseCount; j++) {
+				var sense = synonymSet.senses[j];
+
+				var wordCount = sense.words.length;
+				for(var k = 0; k < wordCount; k++) {
+					var synonym = sense.words[k];
+					//console.log(fullDomain);
+					synonymsHash[synonym] = true;
+				}
+			}
+		}
+
+		var result = [], prop, i;
+
+	    for (prop in synonymsHash) {
+	        if (hasOwnProperty.call(synonymsHash, prop)) {
+	            result.push(prop);
+	        }
+	    }
+
+		return result;
 	}
 };
 
