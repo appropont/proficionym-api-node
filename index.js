@@ -47,11 +47,18 @@ app.get('/', function(req, res) {
 app.get('/synonyms/:word', function(req, res) {
 	var word = req.params.word;
 	if(!validator.isAlpha(word)) {
-		var error = {
+		var error = jsonStringify({
 			error : 'Invalid Parameter',
 			description : 'The word you look up must be a single word with no numbers or punctuation.'
-		}
-		res.send(jsonStringify(error));
+		});
+		res.writeHead(400, {
+		    'Content-Type': 'application/json',
+		    'Content-Length': Buffer.byteLength(error, 'utf8'),
+			'Access-Control-Allow-Origin' : accessControlOrigin
+		});
+		res.write(error);
+		res.end();
+		//is return really necesary here?
 		return;
 	}
 
