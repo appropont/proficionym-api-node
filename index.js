@@ -8,14 +8,8 @@ require('nodetime').profile({
  * External Dependencies
  */
 var express 	  = require('express'),
-	Promise 	  = require('bluebird'),
-	//failed to promisify xml2js (not sure if by own error or by bug in either lib)
-	parseXML 	  = require('xml2js').parseString,
 	validator 	  = require('validator'),
-	request 	  = require('request'),
-	jsonStringify = require('json-stringify-safe'),
-	whois 		  = require('node-whois'),
-	async		  = require('async');
+	jsonStringify = require('json-stringify-safe');
 
 /*
  * Internal Dependencies
@@ -61,25 +55,11 @@ app.get('/synonyms/:word', function(req, res) {
 		return;
 	}
 
-	var tld = 'com';
-	if(req.query.tld && validator.isAlpha(req.query.tld)) {
-		tld = req.query.tld;
-	}
-	var prefix = '';
-	if(req.query.prefix && validator.isAlphanumeric(req.query.prefix)) {
-		prefix = req.query.prefix;
-	}
-	var suffix = '';
-	if(req.query.suffix && validator.isAlphanumeric(req.query.suffix)) {
-		suffix = req.query.suffix;
-	}
-
-
-	var clientAddress = (req.headers['x-forwarded-for'] || '').split(',')[0] || req.connection.remoteAddress;
-
 	synonyms.getSynonyms(word)
 		.then(function(synonyms) {
-			var result = jsonStringify(synonyms);
+			var result = jsonStringify({
+				synonyms : synonyms
+			});
 			res.writeHead(200, {
 		    	'Content-Type': 'application/json',
 			    'Content-Length': Buffer.byteLength(result, 'utf8'),
@@ -90,7 +70,8 @@ app.get('/synonyms/:word', function(req, res) {
 		})
 		.error(function(error) {
 			var err = jsonStringify({
-				error : error
+				error : 'No Synonyms',
+				description : error.error
 			});
 			res.writeHead(400, {
 			    'Content-Type': 'application/json',

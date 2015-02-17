@@ -25,9 +25,8 @@ var synonyms = {
 			    		reject(error);
 			    		return;
 			    	} else {
-			    		if(result.suggestion) {
-			    			console.log('word not found in synonyms lookup');
-			    			reject('Word not found. Please check your spelling');
+			    		if(result.suggestion || result.entry_list.suggestion) {
+			    			reject({error: 'Synonyms not found. Please check your spelling.'});
 			    		}
 				    	var parsedSynonyms = self._parseSynonymsXML(result);
 				    	if(parsedSynonyms.error) {
