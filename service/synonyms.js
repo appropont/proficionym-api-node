@@ -5,10 +5,75 @@ var Promise 	  = require('bluebird'),
 	//failed to promisify xml2js (not sure if by own error or by bug in either lib)
 	parseXML 	  = require('xml2js').parseString;
 
+var redis 		  = require("redis"),
+    redisClient   = redis.createClient();
+
+redisClient.on("error", function (err) {
+    console.log("Redis Error: ", err);
+});
+
 var synonyms = {
 	getSynonyms : function(word) {
 		var self = this;
 		return new Promise(function(resolve, reject) {
+
+			var synonymsList = [];
+
+			//check if synonym exists in cache
+			var getCachedSynonymsPromise = self._getCachedSynonyms(word);
+
+			//Handle cache repsonse
+			var apiPromise = getCachedSynonymsPromise.then(function(result) {
+					//Cached synonyms found
+					resolve(result);
+				})
+				.error(function(err) {
+					//No cached synonyms found so make api request
+					return self._makeApiRequest(word);
+				});
+
+			//Handle Api Response
+			var setCachedSynonymsPromise = apiPromise.then(function(result) {
+					//check for result to see if apiRequest was even made. this fix works, but seems hacky
+					if(result) {
+						synonymsList = result;
+						return self._setCachedSynonyms(word, result);
+					}
+				})
+				.error(function(err) {
+					reject(err);
+				});
+
+			//Handle setting cache response
+			setCachedSynonymsPromise.then(function(result) {
+					if(result) {
+						//console.log('success setting cached synonyms: ', result);
+					} else {
+						//console.log('results already cached');
+					}
+				})
+				.error(function(err) {
+					//console.log('error setting cached synonyms');
+				})
+				.finally(function() {
+					resolve(synonymsList);
+				});
+
+			
+		});
+	},
+
+	/*
+	 * Utility Methods
+	 * These methods below are exposed for unit testing purposes only
+	 */
+
+	_makeApiRequest : function(word) {
+
+		var self = this;
+
+		return new Promise(function(resolve, reject) {
+			//word was not in cache
 			var url = 
 				'http://www.dictionaryapi.com/api/v1/references/thesaurus/xml/' +
 				word +
@@ -23,7 +88,6 @@ var synonyms = {
 			    parseXML(body, function(error, result) {
 			    	if(error) {
 			    		reject(error);
-			    		return;
 			    	} else {
 			    		if(result.suggestion || result.entry_list.suggestion) {
 			    			reject({error: 'Synonyms not found. Please check your spelling.'});
@@ -33,17 +97,51 @@ var synonyms = {
 				    		reject(parsedSynonyms);
 				    	}
 
-			    		resolve(self._synonymsList(parsedSynonyms));
+				    	var synonymsList = self._synonymsList(parsedSynonyms);
+			    		resolve(synonymsList);
 			    	}
 		    	})
 			});
 		});
 	},
 
-	/*
-	 * Utility Methods
-	 * These methods below are exposed for unit testing purposes only
-	 */
+	_getCachedSynonyms : function(word) {
+		return new Promise(function(resolve, reject) {
+			redisClient.get('synonyms:' + word, function(err, result) {
+				if(err) {
+					reject(err);
+				} else if(result) {
+					//results are stored in redis as a string. Need to blow it up into array
+					var resultArray = result.split(',');
+					resolve(resultArray);
+				} else {
+					reject({error: 'No cached synonyms found'});
+				}
+			});
+		});
+	},
+
+	_setCachedSynonyms : function(word, synonyms) {
+		return new Promise(function(resolve, reject) {	
+	    	//cache synonyms results
+	    	redisClient.set('synonyms:' + word, synonyms, function(err, result) {
+	    		if(err) {
+	    			reject(err);
+	    		} else if(result) {
+	    			var secondsPerDay = 60 * 60 * 24;
+	    			var ttlDays = 180;
+	    			var ttl = ttlDays * secondsPerDay;
+	    			redisClient.expire('synonyms:' + word, ttl, function(err, res) {
+	    				//console.log('expire err:', err);
+	    				//console.log('expire result: ', res);
+	    			});
+	    			resolve(result);
+	    		} else {
+	    			reject('Redis: Unkown error aching synonymsList');
+	    		}
+	    	});
+	    });
+	},
 
 	//this method returns an object of mapped data, or an object with an error property
 	_parseSynonymsXML : function(rawSynonyms) {
@@ -53,7 +151,6 @@ var synonyms = {
 			!rawSynonyms.entry_list.entry || 
 			rawSynonyms.entry_list.entry.length == 0 ) {
 
-				//console.log('rawSynonyms fails validation');
 				return {error: '_mapRawSynonyms: rawSynonyms fails validation'};
 		}
 
@@ -150,7 +247,6 @@ var synonyms = {
 				var wordCount = sense.words.length;
 				for(var k = 0; k < wordCount; k++) {
 					var synonym = sense.words[k];
-					//console.log(fullDomain);
 					synonymsHash[synonym] = true;
 				}
 			}
