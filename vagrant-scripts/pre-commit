@@ -1,0 +1,13 @@
+#!/bin/bash
+
+decalre -a disallowed
+disallowed[0]="vagrant"
+disallowed[1]="root"
+
+for V in "${disallowed[@]}"; do
+  if [ $V == $USER ];
+    then
+      printf '%s/n' "Error: $USER is disallowed from committing. You are likely inside of vagrant ssh. Commits must be made from your local environment."
+      exit 1
+  fi
+done

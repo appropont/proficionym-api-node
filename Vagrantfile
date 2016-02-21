@@ -14,6 +14,15 @@ Vagrant.configure(2) do |config|
   end
 
 
+  ############################################################
+  # Basic deps
+
+  config.vm.provision :shell, inline: <<-SHELL
+    apt-get install -y git
+    apt-get install -y redis-server
+  SHELL
+
+  ############################################################
 
   ############################################################
   # Installing node
@@ -21,7 +30,7 @@ Vagrant.configure(2) do |config|
   config.vm.provision :shell, inline: <<-SHELL
     apt-get install -y build-essential
     curl -sL https://deb.nodesource.com/setup_5.x | bash -
-    apt-get install -y node
+    apt-get install -y nodejs
   SHELL
 
   ############################################################
