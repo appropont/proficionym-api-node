@@ -38,7 +38,7 @@ Vagrant.configure(2) do |config|
   ############################################################
   # Installing global npm dependencies
 
-  #config.vm.provision :shell, inline: "npm install knex -g"
+  config.vm.provision :shell, inline: "npm install -g mocha"
 
   ############################################################
 
