@@ -1,9 +1,3 @@
-require('./apikeys');
-require('nodetime').profile({
-    accountKey: apikeys.nodetime, 
-    appName: 'Proficionym API'
-  });
-
 /*
  * External Dependencies
  */
