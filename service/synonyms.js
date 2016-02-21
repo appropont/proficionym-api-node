@@ -1,4 +1,4 @@
-require('../apikeys');
+var apikeys = require('../apikeys');
 
 var Promise 	  = require('bluebird'),
 	request 	  = require('request'),
@@ -24,12 +24,15 @@ var synonyms = {
 
 			//Handle cache repsonse
 			var apiPromise = getCachedSynonymsPromise.then(function(result) {
+                    if(!result) {
+                        //No cached synonyms found so make api request
+                        return self._makeApiRequest(word);
+                    }
 					//Cached synonyms found
 					resolve(result);
 				})
 				.error(function(err) {
-					//No cached synonyms found so make api request
-					return self._makeApiRequest(word);
+                    reject(err);
 				});
 
 			//Handle Api Response
@@ -90,7 +93,8 @@ var synonyms = {
 			    		reject(error);
 			    	} else {
 			    		if(result.suggestion || result.entry_list.suggestion) {
-			    			reject({error: 'Synonyms not found. Please check your spelling.'});
+			    			//reject({error: 'Synonyms not found. Please check your spelling.'});
+                            resolve(false);
 			    		}
 				    	var parsedSynonyms = self._parseSynonymsXML(result);
 				    	if(parsedSynonyms.error) {
@@ -115,7 +119,7 @@ var synonyms = {
 					var resultArray = result.split(',');
 					resolve(resultArray);
 				} else {
-					reject({error: 'No cached synonyms found'});
+					resolve(false);
 				}
 			});
 		});
@@ -137,7 +141,7 @@ var synonyms = {
 	    			});
 	    			resolve(result);
 	    		} else {
-	    			reject('Redis: Unkown error aching synonymsList');
+	    			reject('Redis: Unkown error caching synonymsList');
 	    		}
 	    	});
 	    });

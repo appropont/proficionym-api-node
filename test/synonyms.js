@@ -152,15 +152,15 @@ describe('Synonyms.getSynonyms', function() {
 		should.exist(synonyms.getSynonyms);
 	});
 
-	it('should reject when given a non-existent word', function(done) {
+	it('should resolve empty when given a non-existent word', function(done) {
 
 		synonyms.getSynonyms('testtest')
 			.then(function(result) {
-				should.not.exist(result);
+				result.should.be.an('array').with.length(0);
 				done();
 			})
 			.error(function(error) {
-				should.exist(error);
+				should.not.exist(error);
 				done();
 			});
 
