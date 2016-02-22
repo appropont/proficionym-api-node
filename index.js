@@ -1,3 +1,5 @@
+/* global Buffer */
+
 /*
  * External Dependencies
  */
