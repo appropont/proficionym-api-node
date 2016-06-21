@@ -26,13 +26,28 @@ var synonyms = {
             var apiPromise = getCachedSynonymsPromise.then(function(result) {
                     if(!result) {
                         //No cached synonyms found so make api request
-                        return self._makeApiRequest(word);
+                        return Promise.all([self._makeApiRequest(word), self._makeWordnikApiRequest(word)]);
                     }
                     //Cached synonyms found
                     resolve(result);
                 })
                 .error(function(err) {
                     reject(err);
+                })
+                //handle the all or continue passing along the empty result
+                .then(function(result) {
+                    if(result) {
+                        //console.log('wordnik api request', result);
+                        var joinedSynonyms = result[0]
+                            .concat(result[1])
+                            .sort()
+                            .filter(function(item, pos, arr) {
+                                return !pos || item != arr[pos - 1];
+                            });
+                        return joinedSynonyms;
+                    }
+                }, function(err) {
+                    console.log('error making api requests: ', err);
                 });
 
             //Handle Api Response
@@ -56,7 +71,7 @@ var synonyms = {
                     }
                 })
                 .error(function(err) {
-                    //console.log('error setting cached synonyms');
+                    console.log('error setting cached synonyms: ', err);
                 })
                 .finally(function() {
                     resolve(synonymsList);
@@ -107,6 +122,49 @@ var synonyms = {
                 })
             });
         });
+    },
+
+    _makeWordnikApiRequest : function(word) {
+
+        var self = this;
+
+        return new Promise(function(resolve, reject) {
+            //word was not in cache
+            var url =
+                'http://api.wordnik.com:80/v4/word.json/' +
+                word +
+                '/relatedWords?useCanonical=false&limitPerRelationshipType=100&api_key=' +
+                apikeys.wordnik;
+
+            request(url, function(error, response, body) {
+                if(error) {
+                    reject(error);
+                    return;
+                }
+                //parsing the json from wordnik is so much easier
+                //console.log('Wordnik Response: ', body);
+                resolve(self._parseWordnikResults(JSON.parse(body)));
+            });
+        });
+    },
+
+    _parseWordnikResults : function(results) {
+        // hash table for fast lookups
+        var wantedRelationshipTypes = {
+            "verb-form": true,
+            "hypernym": true,
+            "etymologically-related-term": true,
+            "variant": true,
+            "same-context": true,
+            "synonym": true
+        };
+        var words = [];
+        for(var i = 0; i < results.length; i++) {
+            if(wantedRelationshipTypes[results[i].relationshipType] === true) {
+                words = words.concat(results[i].words);
+            }
+        }
+        return words;
     },
 
     _getCachedSynonyms : function(word) {
