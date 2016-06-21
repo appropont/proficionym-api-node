@@ -100,20 +100,23 @@ var synonyms = {
 
             request(url, function(error, response, body) {
                 if(error) {
-                    reject(error);
+                    resolve([]);
                     return;
                 }
                 parseXML(body, function(error, result) {
                     if(error) {
-                        reject(error);
+                        resolve([]);
+                        return;
                     } else {
                         if(result.suggestion || result.entry_list.suggestion) {
                             //reject({error: 'Synonyms not found. Please check your spelling.'});
-                            resolve(false);
+                            resolve([]);
+                            return;
                         }
                         var parsedSynonyms = self._parseSynonymsXML(result);
                         if(parsedSynonyms.error) {
-                            reject(parsedSynonyms);
+                            resolve([]);
+                            return;
                         }
 
                         var synonymsList = self._synonymsList(parsedSynonyms);
@@ -143,9 +146,18 @@ var synonyms = {
                 }
                 //parsing the json from wordnik is so much easier
                 //console.log('Wordnik Response: ', body);
-                resolve(self._parseWordnikResults(JSON.parse(body)));
+                resolve(self._parseWordnikResults(self._parseRawWordnikBody(body)));
             });
         });
+    },
+
+    _parseRawWordnikBody : function(body) {
+        try {
+            return JSON.parse(body);
+        } catch(e) {
+            console.log('Error parsing raw wordnik body');
+            return {};
+        }
     },
 
     _parseWordnikResults : function(results) {
