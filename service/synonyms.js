@@ -42,12 +42,12 @@ var synonyms = {
                             .concat(result[1])
                             .sort()
                             .filter(function(item, pos, arr) {
-                                return !pos || item != arr[pos - 1];
+                                return !pos || item !== arr[pos - 1];
                             });
                         return joinedSynonyms;
                     }
                 }, function(err) {
-                    console.log('error making api requests: ', err);
+                    reject(err);
                 });
 
             //Handle Api Response
@@ -71,7 +71,7 @@ var synonyms = {
                     }
                 })
                 .error(function(err) {
-                    console.log('error setting cached synonyms: ', err);
+                    //console.log('error setting cached synonyms: ', err);
                 })
                 .finally(function() {
                     resolve(synonymsList);
@@ -109,7 +109,6 @@ var synonyms = {
                         return;
                     } else {
                         if(result.suggestion || result.entry_list.suggestion) {
-                            //reject({error: 'Synonyms not found. Please check your spelling.'});
                             resolve([]);
                             return;
                         }
@@ -141,7 +140,8 @@ var synonyms = {
 
             request(url, function(error, response, body) {
                 if(error) {
-                    reject(error);
+                    //console.log('Wordnik api error: ', error);
+                    resolve([]);
                     return;
                 }
                 //parsing the json from wordnik is so much easier
@@ -155,8 +155,8 @@ var synonyms = {
         try {
             return JSON.parse(body);
         } catch(e) {
-            console.log('Error parsing raw wordnik body');
-            return {};
+            //console.log('Error parsing raw wordnik body');
+            return [];
         }
     },
 
