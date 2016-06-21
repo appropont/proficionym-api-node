@@ -186,7 +186,7 @@ var synonyms = {
     _setCachedSynonyms : function(word, synonyms) {
         return new Promise(function(resolve, reject) {  
             //cache synonyms results
-            redisClient.set('synonyms:' + word, synonyms, function(err, result) {
+            redisClient.set('synonyms:' + word, synonyms.join(), function(err, result) {
                 if(err) {
                     reject(err);
                 } else if(result) {
