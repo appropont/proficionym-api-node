@@ -1,5 +1,6 @@
 var apikeys = {
-	"thesaurus": process.env.THESAURUS_API_KEY
+    "thesaurus": process.env.THESAURUS_API_KEY,
+    "wordnik": process.env.WORDNIK_API_KEY
 };
 var Promise 	  = require('bluebird'),
 	request 	  = require('request'),
@@ -7,7 +8,9 @@ var Promise 	  = require('bluebird'),
 	parseXML 	  = require('xml2js').parseString;
 
 var redis         = require("redis"),
-    redisClient   = redis.createClient();
+    redisClient   = redis.createClient({
+        host: "redis"
+    });
 
 redisClient.on("error", function (err) {
     console.log("Redis Error: ", err);
