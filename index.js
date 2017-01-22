@@ -118,10 +118,20 @@ app.get('/whois/:domain', function(req, res) {
         });
 
 });
- 
+
 /*
  * Start Server
  */
 app.listen(3000);
 console.log('Listening on port 3000...');
 
+
+/*
+ * Debug events
+ */
+process.on('uncaughtException', (err) => {
+    console.log('Uncaught Exception: ', err);
+});
+process.on('unhandledRejection', (reason, p) => {
+  console.log('Unhandled rejection: ', reason, p);
+});
