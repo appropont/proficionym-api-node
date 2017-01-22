@@ -1,4 +1,4 @@
-var apiKeys = {
+var apikeys = {
 	"thesaurus": process.env.THESAURUS_API_KEY
 };
 var Promise 	  = require('bluebird'),
