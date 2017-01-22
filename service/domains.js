@@ -6,7 +6,7 @@ var Promise 	  = require('bluebird'),
 	parseXML 	  = require('xml2js').parseString,
 	validator 	  = require('validator'),
 	request 	  = require('request'),
-	whois 		  = require('node-whois'),
+	whois 		  = require('whois'),
 	async		  = require('async');
 
 var domains = {
