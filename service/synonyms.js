@@ -1,5 +1,7 @@
-var apikeys = require('../apikeys');
-
+//var apikeys = require('../apikeys');
+var apiKeys = {
+	"thesaurus": process.env.THESAURUS_API_KEY
+};
 var Promise 	  = require('bluebird'),
 	request 	  = require('request'),
 	//failed to promisify xml2js (not sure if by own error or by bug in either lib)

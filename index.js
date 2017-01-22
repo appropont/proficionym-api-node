@@ -3,9 +3,10 @@
 /*
  * External Dependencies
  */
-var express 	  = require('express'),
-	validator 	  = require('validator'),
-	jsonStringify = require('json-stringify-safe');
+var express 	  = require('express');
+var validator 	  = require('validator');
+var jsonStringify = require('json-stringify-safe');
+require('dotenv').config()
 
 /*
  * Internal Dependencies
