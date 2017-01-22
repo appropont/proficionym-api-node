@@ -9,7 +9,7 @@ var Promise 	  = require('bluebird'),
 
 var redis         = require("redis"),
     redisClient   = redis.createClient({
-        host: "redis"
+        host: "proficionym-api-redis"
     });
 
 redisClient.on("error", function (err) {
