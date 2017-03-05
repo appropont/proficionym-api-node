@@ -9,7 +9,7 @@ var Promise 	  = require('bluebird'),
 
 var redis         = require("redis"),
     redisClient   = redis.createClient({
-        host: "proficionym-api-redis"
+        //host: "proficionym-api-redis"
     });
 
 redisClient.on("error", function (err) {
@@ -150,7 +150,10 @@ var synonyms = {
                 }
                 //parsing the json from wordnik is so much easier
                 //console.log('Wordnik Response: ', body);
-                resolve(self._parseWordnikResults(self._parseRawWordnikBody(body)));
+                const rawWords = self._parseWordnikResults(self._parseRawWordnikBody(body));
+                resolve(rawWords.map((word) => {
+                    return self._extractKeywords(word)
+                }));
             });
         });
     },
