@@ -21,7 +21,6 @@ RUN set -ex \
 ENV NPM_CONFIG_LOGLEVEL info
 ENV NODE_VERSION 4.7.2
 
-RUN add-apt-repository ppa:chris-lea/redis-server
 RUN apt-get update
 RUN apt-get install redis-server -y
 
