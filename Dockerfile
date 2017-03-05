@@ -21,9 +21,9 @@ RUN set -ex \
 ENV NPM_CONFIG_LOGLEVEL info
 ENV NODE_VERSION 4.7.2
 
-RUN sudo add-apt-repository ppa:chris-lea/redis-server
-RUN sudo apt-get update
-RUN sudo apt-get install redis-server -y
+RUN add-apt-repository ppa:chris-lea/redis-server
+RUN apt-get update
+RUN apt-get install redis-server -y
 
 RUN curl -SLO "https://nodejs.org/dist/v$NODE_VERSION/node-v$NODE_VERSION-linux-x64.tar.xz" \
   && curl -SLO "https://nodejs.org/dist/v$NODE_VERSION/SHASUMS256.txt.asc" \
