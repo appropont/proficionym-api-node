@@ -8,9 +8,7 @@ var Promise 	  = require('bluebird'),
 	parseXML 	  = require('xml2js').parseString;
 
 var redis         = require("redis"),
-    redisClient   = redis.createClient({
-        host: process.env.REDIS_URL
-    });
+    redisClient   = redis.createClient(process.env.REDIS_URL);
 
 redisClient.on("error", function (err) {
     console.log("Redis Error: ", err);
