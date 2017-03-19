@@ -35,7 +35,8 @@ app.get('/', function(req, res) {
     res.writeHead(200, {
         'Content-Type': 'application/json',
         'Content-Length': Buffer.byteLength(response, 'utf8'),
-        'Access-Control-Allow-Origin' : accessControlOrigin
+        'Access-Control-Allow-Origin': accessControlOrigin,
+        'Served-By': 'Node.js'
     });
     res.write(response);
     res.end();
@@ -51,7 +52,8 @@ app.get('/synonyms/:word', function(req, res) {
         res.writeHead(400, {
             'Content-Type': 'application/json',
             'Content-Length': Buffer.byteLength(error, 'utf8'),
-            'Access-Control-Allow-Origin' : accessControlOrigin
+            'Access-Control-Allow-Origin': accessControlOrigin,
+            'Served-By': 'Node.js'
         });
         res.write(error);
         res.end();
@@ -67,7 +69,8 @@ app.get('/synonyms/:word', function(req, res) {
             res.writeHead(200, {
                 'Content-Type': 'application/json',
                 'Content-Length': Buffer.byteLength(result, 'utf8'),
-                'Access-Control-Allow-Origin' : accessControlOrigin
+                'Access-Control-Allow-Origin': accessControlOrigin,
+                'Served-By': 'Node.js'
             });
             res.write(result);
             res.end();
@@ -80,7 +83,8 @@ app.get('/synonyms/:word', function(req, res) {
             res.writeHead(400, {
                 'Content-Type': 'application/json',
                 'Content-Length': Buffer.byteLength(err, 'utf8'),
-                'Access-Control-Allow-Origin' : accessControlOrigin
+                'Access-Control-Allow-Origin': accessControlOrigin,
+                'Served-By': 'Node.js'
             });
             res.write(err);
             res.end();
@@ -99,7 +103,8 @@ app.get('/whois/:domain', function(req, res) {
             res.writeHead(200, {
                 'Content-Type': 'application/json',
                 'Content-Length': Buffer.byteLength(result, 'utf8'),
-                'Access-Control-Allow-Origin' : accessControlOrigin
+                'Access-Control-Allow-Origin': accessControlOrigin,
+                'Served-By': 'Node.js'
             });
             res.write(result);
             res.end();
@@ -111,7 +116,8 @@ app.get('/whois/:domain', function(req, res) {
             res.writeHead(400, {
                 'Content-Type': 'application/json',
                 'Content-Length': Buffer.byteLength(err, 'utf8'),
-                'Access-Control-Allow-Origin' : accessControlOrigin
+                'Access-Control-Allow-Origin': accessControlOrigin,
+                'Served-By': 'Node.js'
             });
             res.write(err);
             res.end();
