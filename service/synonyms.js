@@ -28,7 +28,10 @@ var synonyms = {
             var apiPromise = getCachedSynonymsPromise.then(function(result) {
                     if(!result) {
                         //No cached synonyms found so make api request
-                        return Promise.all([self._makeApiRequest(word), self._makeWordnikApiRequest(word)]);
+                        return Promise.all([
+                            self._makeApiRequest(word), 
+                            self._makeWordnikApiRequest(word)
+                        ]);
                     }
                     //Cached synonyms found
                     resolve(result);
@@ -150,7 +153,11 @@ var synonyms = {
                 //console.log('Wordnik Response: ', body);
                 const rawWords = self._parseWordnikResults(self._parseRawWordnikBody(body));
                 resolve(rawWords.map((word) => {
-                    return self._extractKeywords(word)
+                    var keywords = self._extractKeywords(word);
+                    if(Array.isArray(keywords) && keywords.length === 1) {
+                        keywords = keywords[0];
+                    }
+                    return keywords;
                 }));
             });
         });
@@ -286,7 +293,7 @@ var synonyms = {
     },
 
     _extractKeywords : function(str) {
-        return str
+        return str.toLowerCase()
             //remove whitespace
             .replace(/(\s)/g, '')
             //remove parentheses and words in them
@@ -297,6 +304,8 @@ var synonyms = {
             .replace(/(\[\])/g, '')
             //remove hyphens
             .replace(/(-)/g, '')
+            //remove apostrophes
+            .replace(/(')/g, '')
             //use commas to split words into an array
             .split(',');
     },
