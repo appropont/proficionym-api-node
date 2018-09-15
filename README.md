@@ -1,12 +1,12 @@
-#Proficionym API (Node/Express implementation)
+# Proficionym API (Node/Express implementation)
 
 This is the underlying api for Proficionym. It was needed to work around CORS issues with the dictionaryapi as well as to be able to use raw whois instead of using a third-party api for domain lookups.
 
-##What does it do?
+## What does it do?
 
 This api exposes 2 endpoints that accept queries. The first is a synonyms endpoint that fetches synonyms for the provided word. The second is an endpoint to perform a single whois lookup. Single lookups were used to provide better frontend user feedback during the query process. Batch queries were deemed too slow after preliminary testing.
 
-##License
+## License
 
 The MIT License (MIT)
 
