@@ -4,11 +4,11 @@
 Vagrant.configure(2) do |config|
 
   config.vm.box = "ubuntu/trusty64"
-  config.vm.hostname = "api.proficionym.dev"
-  
+  config.vm.hostname = "api.proficionym.local"
+
   config.vm.network "forwarded_port", guest: 3000, host: 80
   config.vm.network :private_network, :auto_network => true
-  
+
   config.vm.synced_folder "./", "/home/vagrant/Code"
 
   config.vm.provider "virtualbox" do |vb|
@@ -31,12 +31,12 @@ Vagrant.configure(2) do |config|
 
   config.vm.provision :shell, inline: <<-SHELL
     apt-get install -y build-essential
-    curl -sL https://deb.nodesource.com/setup_5.x | bash -
+    curl -sL https://deb.nodesource.com/setup_8.x | bash -
     apt-get install -y nodejs
   SHELL
 
   ############################################################
-  
+
   ############################################################
   # Installing global npm dependencies
 
@@ -54,8 +54,8 @@ Vagrant.configure(2) do |config|
   SHELL
 
   ############################################################
-  
-   
+
+
   ############################################################
   # Copy git-commit hook to prevent vagrant ssh based commits
 
@@ -68,7 +68,7 @@ Vagrant.configure(2) do |config|
 
   ############################################################
   # Oh My ZSH Install section
-  
+
   config.vm.provision :shell, inline: "apt-get -y install zsh"
 
   config.vm.provision "shell", privileged: false, inline: <<-SHELL
