@@ -44,12 +44,17 @@ var synonyms = {
                     if(result) {
                         //console.log('wordnik api request', result);
                         var joinedSynonyms = result[0]
-                            .concat(result[1])
+                            .concat(result[1]);
+
+                        joinedSynonyms.push(word);
+
+                        var sortedAndFilteredSynonyms = joinedSynonyms
                             .sort()
                             .filter(function(item, pos, arr) {
                                 return !pos || item !== arr[pos - 1];
                             });
-                        return joinedSynonyms;
+
+                        return sortedAndFilteredSynonyms;
                     }
                 }, function(err) {
                     reject(err);
