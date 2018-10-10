@@ -29,7 +29,7 @@ var synonyms = {
                     if(!result) {
                         //No cached synonyms found so make api request
                         return Promise.all([
-                            self._makeApiRequest(word), 
+                            self._makeApiRequest(word),
                             self._makeWordnikApiRequest(word)
                         ]);
                     }
@@ -82,7 +82,7 @@ var synonyms = {
                     resolve(synonymsList);
                 });
 
-            
+
         });
     },
 
@@ -97,7 +97,7 @@ var synonyms = {
 
         return new Promise(function(resolve, reject) {
             //word was not in cache
-            var url = 
+            var url =
                 'http://www.dictionaryapi.com/api/v1/references/thesaurus/xml/' +
                 word +
                 '?key=' +
@@ -208,7 +208,7 @@ var synonyms = {
     },
 
     _setCachedSynonyms : function(word, synonyms) {
-        return new Promise(function(resolve, reject) {  
+        return new Promise(function(resolve, reject) {
             //cache synonyms results
             redisClient.set('synonyms:' + word, synonyms.join(), function(err, result) {
                 if(err) {
@@ -232,9 +232,9 @@ var synonyms = {
     //this method returns an object of mapped data, or an object with an error property
     _parseSynonymsXML : function(rawSynonyms) {
         //check for needed properties
-        if( !rawSynonyms || 
-            !rawSynonyms.entry_list || 
-            !rawSynonyms.entry_list.entry || 
+        if( !rawSynonyms ||
+            !rawSynonyms.entry_list ||
+            !rawSynonyms.entry_list.entry ||
             rawSynonyms.entry_list.entry.length == 0 ) {
 
                 return {error: '_mapRawSynonyms: rawSynonyms fails validation'};
@@ -256,12 +256,12 @@ var synonyms = {
 
                 //Checking for valid Sense.
                 //  The API sometimes returns invalid Senses mixed with valid ones (investigate why)
-                if( !rawSense || 
-                    !rawSense.mc || 
-                    !rawSense.mc.length || 
-                    !rawSense.rel || 
-                    !rawSense.rel.length || 
-                    !rawSense.syn || 
+                if( !rawSense ||
+                    !rawSense.mc ||
+                    !rawSense.mc.length ||
+                    !rawSense.rel ||
+                    !rawSense.rel.length ||
+                    !rawSense.syn ||
                     !rawSense.syn.length) {
                     //console.log('rawSense is null. senseCount: ', senseCount, ' j: ', j, ' i: ', i);
                     continue;
@@ -307,7 +307,10 @@ var synonyms = {
             //remove apostrophes
             .replace(/(')/g, '')
             //use commas to split words into an array
-            .split(',');
+            .split(',')
+            .map(word => {
+                return word.replace(/[\W_]/, '');
+            });
     },
 
     //Takes in a synonyms array.
@@ -321,7 +324,7 @@ var synonyms = {
         }
     */
     _synonymsList : function(synonyms) {
-        //storing domains as a hash 
+        //storing domains as a hash
         var synonymsHash = {};
 
         //so many loops. caching lengths to squeeze performance a bit.
