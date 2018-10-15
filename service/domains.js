@@ -18,6 +18,7 @@ var domains = {
                 reject({domain: domain, error: err, response: data});
             } else {
                 var availableRegex = /No match for domain "(.*)"/g,
+                    availableRegex = /NOT FOUND/g,
                     unavailableRegex = /Domain Name: (.*)\n/g,
                     unavailableRegexAlt = /Domain Name: (.*)\r\n/g,
                     unavailableRegexAlt2 = /Domain Name:(.*)\r\n/g;
@@ -25,7 +26,10 @@ var domains = {
                 var domainResponse = {
                     domain : domain
                 };
-                if(data.search(availableRegex) > -1) {
+                if(
+                    data.search(availableRegex) > -1 ||
+                    data.search(availableRegex2) > -1
+                ) {
                     domainResponse.status = "available";
                 } else if(
                         data.search(unavailableRegex) > -1 ||
