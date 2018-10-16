@@ -78,7 +78,7 @@ describe('Synonyms._parseSynonymsXML', function() {
         var validInput = {
             entry_list : {
                 entry : [
-                    {   
+                    {
                         fl : 'noun',
                         sens : [
                             {
@@ -116,7 +116,7 @@ describe('Synonyms._synonymsList', function() {
         var testSynonyms = [
             {
                 wordType : 'noun',
-                senses : [ 
+                senses : [
                     {
                         meaning : 'A test meaning',
                         words : [
@@ -156,7 +156,7 @@ describe('Synonyms.getSynonyms', function() {
 
         synonyms.getSynonyms('testtest')
             .then(function(result) {
-                result.should.be.an('array').with.length(0);
+                result.should.be.an('array').with.length(1);
                 done();
             })
             .error(function(error) {
